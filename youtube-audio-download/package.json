@@ -22,25 +22,44 @@
       "mode": "view",
       "preferences": [
         {
-          "name": "downloadFolder",
-          "type": "string",
-          "title": "Download Folder",
-          "description": "Folder to save downloaded audio files",
-          "default": "~/Downloads"
+          "name": "downloadPath",
+          "type": "directory",
+          "title": "Download Path",
+          "description": "Path to save downloaded audio files",
+          "default": "~/Downloads",
+          "required": true
         },
         {
           "name": "brewPath",
-          "type": "string",
+          "type": "textfield",
           "title": "Homebrew Path",
           "description": "Path to the Homebrew executable",
-          "default": "/opt/homebrew/bin/brew"
+          "default": "/opt/homebrew/bin/brew",
+          "required": true
         },
         {
           "name": "ytDlpPath",
-          "type": "string",
+          "type": "textfield",
           "title": "yt-dlp Path",
           "description": "Path to the yt-dlp executable",
-          "default": "/opt/homebrew/bin/yt-dlp"
+          "default": "/opt/homebrew/bin/yt-dlp",
+          "required": true
+        },
+        {
+          "name": "ffprobePath",
+          "type": "textfield",
+          "title": "yt-ffprobePath Path",
+          "description": "Path to the ffprobePath executable",
+          "default": "/opt/homebrew/bin/ffprobePath",
+          "required": true
+        },
+        {
+          "name": "ffmpegPath",
+          "type": "textfield",
+          "title": "ffmpegPath",
+          "description": "Path to the ffmpeg executable",
+          "default": "/opt/homebrew/bin/ffmpeg",
+          "required": true
         }
       ]
     }

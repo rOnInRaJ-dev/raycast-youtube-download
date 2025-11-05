@@ -3,6 +3,7 @@ import { getPreferenceValues } from "@raycast/api";
 import { useState } from "react";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { format } from "path";
 
 const execAsync = promisify(exec);
 
@@ -10,13 +11,29 @@ interface Preferences {
     ytDlpPath: string;
     brewPath: string;
     downloadPath: string;
+    ffmpegPath: string;
+    ffprobePath: string;
 }
 
-
+// --audio-format FORMAT           Format to convert the audio to when -x is
+//                                 used. (currently supported: best (default),
+//                                 aac, alac, flac, m4a, mp3, opus, vorbis,
+//                                 wav).
+const audioExportFormats = [
+    { key: "wav", title: "WAV" },
+    { key: "mp3", title: "MP3" },
+    { key: "m4a", title: "M4A" },
+    { key: "flac", title: "FLAC" },
+    { key: "aac", title: "AAC" },
+    { key: "opus", title: "OPUS" },
+    { key: "vorbis", title: "VORBIS" },
+    { key: "alac", title: "ALAC" },
+];
 
 type Values = {
     url: string;
-    title: string;
+    audioExportFormat?: string;
+    format: string;
 };
 
 interface YtFormat {
@@ -32,27 +49,31 @@ interface YtFormat {
     tbr: number;
 }
 
+const url_title: string = "";
+
 export default function Command() {
     const preferences: Preferences = getPreferenceValues<Preferences>();
 
+
     const [audioFormats, setAudioFormats] = useState<YtFormat[]>([]);
     const [videoFormats, setVideoFormats] = useState<YtFormat[]>([]);
+    const [formats, setFormats] = useState<YtFormat[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [audioOnly, setAudioOnly] = useState<boolean>(false);
-
-    const audioExportFormats = [
-        { key: "wav", title: "WAV" },
-        { key: "mp3", title: "MP3" },
-        { key: "m4a", title: "M4A" },
-        { key: "flac", title: "FLAC" },
-        { key: "aac", title: "AAC" },
-    ]
+    const [title, setTitle] = useState<string>("");
 
 
+
+    // function to handle URL change
     async function handleUrlChanged(newValue: string) {
         console.log("URL changed:", newValue);
 
         setLoading(true);
+
+        // empty previous formats
+        setFormats([]);
+        setAudioFormats([]);
+        setVideoFormats([]);
 
         const formats = await fetchFormatOptions(newValue);
         // console.log("Fetched formats:", formats);
@@ -60,6 +81,9 @@ export default function Command() {
 
         // Get both audio and video formats
         if (formats) {
+            setFormats(formats);
+
+
             // AUDIO formats
             const audioFormats = formats.filter(format => 
                 format.resolution === 'audio only' ||
@@ -95,12 +119,73 @@ export default function Command() {
 
 
     // function to handle form submission
-    function handleSubmit(values: Values) {
+    async function handleSubmit(values: Values) {
         console.log(values.url);
         showToast({ 
             title: "Downloading audio...", 
             message: `URL: ${values.url}` 
         });
+
+
+        // DOWNLOAD Logic here
+
+        // format selection
+        // audioonly mode
+        // audio export format selection
+
+        const toast = await showToast({ 
+            style: Toast.Style.Animated,
+            title: "Downloading audio...",
+            message: `URL: ${values.url}` 
+        });
+        try{
+
+            const options: string[] = [];
+            options.push(`--ffmpeg-location "${preferences.ffmpegPath}"`);
+
+            if(audioOnly) {
+                console.log("Audio Only Mode. Export Format:", values.audioExportFormat);
+
+                // yt-dlp -x --audio-format wav "https://youtu.be/AX6OrbgS8lI" EXAMPLE SCRIPT
+                options.push(`-x`);
+                options.push(`--audio-format ${values.audioExportFormat}`);
+                options.push(`-o "${preferences.downloadPath}/${title}.${values.audioExportFormat}"`); // output path   
+
+
+                // const script = `${preferences.ytDlpPath} -x --audio-format ${values.audioExportFormat} -o "${preferences.downloadPath}/${title}.${values.audioExportFormat}" "${values.url}"`;
+                // console.log("Executing script:", script);
+
+
+            
+                // const { stdout } = await execAsync(script);
+                // console.log("Download Output:", stdout);
+
+
+            } else {
+                console.log("Video + Audio Mode");
+                const ext = formats.find(f => f.format_id === values.format)?.ext || "mp4";
+
+                options.push(`-o "${preferences.downloadPath}/${title}.${ext}"`); // output path
+            }
+            
+
+            options.push(`-f ${values.format}`); // format id
+            options.push(`"${values.url}"`); // video url
+
+            const command = `${preferences.ytDlpPath} ${options.join(' ')}`;
+            console.log("Executing command:", command);
+
+            const { stdout } = await execAsync(`${preferences.ytDlpPath} ${options.join(' ')}`);
+            console.log("Download Output:", stdout);
+
+            toast.style = Toast.Style.Success;
+            toast.title = "Download completed";
+        }
+        catch (error) {
+            toast.style = Toast.Style.Failure;
+            toast.title = "Download failed"; 
+            console.error("Error during download:", error);
+        }
 
     }
 
@@ -108,6 +193,12 @@ export default function Command() {
 // yt-dlp --dump-json "https://www.youtube.com/watch?v=AX6OrbgS8lI" | jq '.' > formats.json
     async function fetchFormatOptions (url: string) {
         if (!url) return;
+
+        // Toast loading
+        const toast = await showToast({
+            style: Toast.Style.Animated,
+            title: `Processing URL: ${url}`,
+        });
 
 
         try{
@@ -119,10 +210,10 @@ export default function Command() {
 
 
             // debug all formats in a table with format_id, ext, format_note, tbr
-            console.log(`Found ${formats.length} formats`);
-            formats.forEach(format => {
-                console.log(`ID: ${format.format_id}, Ext: ${format.ext}, Note: ${format.format}, TBR: ${format.tbr}`);
-            });
+            // console.log(`Found ${formats.length} formats`);
+            // formats.forEach(format => {
+            //     console.log(`ID: ${format.format_id}, Ext: ${format.ext}, Note: ${format.format}, TBR: ${format.tbr}`);
+            // });
             
 
 
@@ -138,17 +229,19 @@ export default function Command() {
 
 
 
+            // get the title of the video
+            setTitle(videoInfo.title);
+            console.log("Video Title updated:", videoInfo.title);
+
+            // update toast
+            toast.style = Toast.Style.Success;
+            toast.title = "Format options fetched";
 
             return filteredFormats;
-
-            // filter only audio formats
-            // const audioFormats = formats.filter(format => format.audio_ext && !format.video_ext);
-
-            // console.log("Audio Formats:", audioFormats);
-            // return audioFormats;
-
         }
         catch (error) {
+            toast.style = Toast.Style.Failure;
+            toast.title = "Failed to fetch format options";
             console.error("Error fetching format options:", error);
         }
 
@@ -236,11 +329,9 @@ export default function Command() {
             {audioOnly &&  (
 
                 <Form.Dropdown 
-                    id="exportFormat" 
+                    id="audioExportFormat" 
                     title="Audio Export Format" 
                     isLoading={loading}
-                    disabled={!audioOnly}
-
                 >
                     {audioExportFormats.map((f) => (
                         <Form.Dropdown.Item
