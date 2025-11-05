@@ -28,14 +28,25 @@ interface YtFormat {
     vcodec: string;
     acodec: string;
     format: string;
+    format_note: string;
     tbr: number;
 }
 
 export default function Command() {
     const preferences: Preferences = getPreferenceValues<Preferences>();
+
     const [audioFormats, setAudioFormats] = useState<YtFormat[]>([]);
     const [videoFormats, setVideoFormats] = useState<YtFormat[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [audioOnly, setAudioOnly] = useState<boolean>(false);
+
+    const audioExportFormats = [
+        { key: "wav", title: "WAV" },
+        { key: "mp3", title: "MP3" },
+        { key: "m4a", title: "M4A" },
+        { key: "flac", title: "FLAC" },
+        { key: "aac", title: "AAC" },
+    ]
 
 
     async function handleUrlChanged(newValue: string) {
@@ -90,6 +101,7 @@ export default function Command() {
             title: "Downloading audio...", 
             message: `URL: ${values.url}` 
         });
+
     }
 
     // function to fetch available format options using yt-dlp with this command:
@@ -172,20 +184,78 @@ export default function Command() {
                 autoFocus
             />
 
+            {/* Toggle for audio only mode */}
+            <Form.Checkbox
+                id="audioOnly"
+                label="Audio Only"
+                value={audioOnly}
+                onChange={setAudioOnly}
+            />
 
+            <Form.Separator />
+
+
+
+        
             {/* // get input type. only visible after submitting TextField */}
-            <Form.Dropdown id="format" title="Format">
+            <Form.Dropdown id="format" title="Format" isLoading={loading}>
                 {/* Audio only formats */}
                 <Form.Dropdown.Section title="Audio Formats">
+                    {audioFormats.map((f) => (
+                        <Form.Dropdown.Item 
+                            key={f.format_id} 
+                            value={f.format_id} 
+                            title={`${f.ext} | ${f.resolution} | ${f.format_note}`} 
+                        />
+                    ))}
 
                 </Form.Dropdown.Section>
 
 
-
-
                 {/* Video only formats */}
+                {!audioOnly && (
+                    <Form.Dropdown.Section title="Video Formats">
+                        {videoFormats.map((f) => (
+                            <Form.Dropdown.Item 
+                                key={f.format_id} 
+                                value={f.format_id} 
+                                title={`${f.ext} | ${f.tbr}kbps | ${f.resolution}`} 
+                            />
+                        ))}
+                    </Form.Dropdown.Section>
+                )}
 
             </Form.Dropdown>
+
+
+
+            {/* AUDIO ONLY MODE */}
+            {/* GET THE AUDIO ONLY MODE exporting format */}
+
+
+            {audioOnly &&  (
+
+                <Form.Dropdown 
+                    id="exportFormat" 
+                    title="Audio Export Format" 
+                    isLoading={loading}
+                    disabled={!audioOnly}
+
+                >
+                    {audioExportFormats.map((f) => (
+                        <Form.Dropdown.Item
+                            key={f.key}
+                            value={f.key}
+                            title={f.title}
+                        />
+                    ))}
+                </Form.Dropdown>
+            )}
+
+
+
+
+
 
         </Form>
 
